@@ -8,15 +8,16 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.File;
 import java.util.List;
 
 @RestController
@@ -63,14 +64,27 @@ public class SitePostController {
             return ResponseEntity.badRequest().body("Invalid sitePost JSON: " + e.getMessage());
         }
     }
+    @GetMapping("/test-image")
+    public ResponseEntity<String> testFileAccess() {
+        System.out.printf("hhhhhhhhhhh");
+        File imageFile = new File("C:/Users/hp/Desktop/sponsoring-assistant-backend/uploads/pp.png");
 
+        System.out.println("🔍 Chemin absolu : " + imageFile.getAbsolutePath());
+        System.out.println("📁 Existe ? " + imageFile.exists());
+        System.out.println("🔓 Lisible ? " + imageFile.canRead());
+        System.out.println("🧱 Est fichier ? " + imageFile.isFile());
+
+        if (!imageFile.exists()) return ResponseEntity.notFound().build();
+
+        return ResponseEntity.ok("✅ Le fichier est accessible.");
+    }
 
     @GetMapping("")
     public ResponseEntity<List<SitePost>> getAll(
     ) {
         return ResponseEntity.ok(sitePostService.getAllSitePosts());
     }
-    @GetMapping("/{id}")
+    @GetMapping("/{idPost}")
     public ResponseEntity<SitePost> getAll(@PathVariable int idPost
     ) {
         return ResponseEntity.ok(sitePostService.getSitePostById(idPost));

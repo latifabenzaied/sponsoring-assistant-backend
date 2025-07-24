@@ -2,11 +2,20 @@ server:
   port: 9091
   servlet:
     context-path: /api/v1/
+
+upload:
+  path: ${user.dir}/uploads
+
+
+logging:
+  level:
+    org.springframework.web.servlet.resource: DEBUG
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/sponsoring_db
-    username: eya
-    password: eya123
+    username: latifa
+    password: latifa123
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -15,3 +24,4 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+

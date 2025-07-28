@@ -23,10 +23,6 @@ public class SitePostService {
     private final SitePostRepository sitePostRepository;
     private final FileStorageService fileStorageService;
 
-//    public SitePost addSitePost(SitePost sitePost) {
-//       return  sitePostRepository.save(sitePost);
-//    }
-
     public SitePost addSitePost(SitePost sitePost, List<MultipartFile> imageFiles) {
         List<String> imagePaths = new ArrayList<>();
 

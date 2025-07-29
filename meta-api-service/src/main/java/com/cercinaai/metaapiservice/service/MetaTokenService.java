@@ -20,13 +20,13 @@ import java.time.LocalDateTime;
 public class MetaTokenService {
 
     private final MetaAccountRepository metaAccountRepository;
-    private final RestTemplate restTemplate = new RestTemplate(); // ou injecté en @Bean
+    private final RestTemplate restTemplate = new RestTemplate();
     @Value("${meta.app.client-id}")
     private String clientId;
 
     @Value("${meta.app.client-secret}")
     private String clientSecret;
-    @Value("${meta.api.token.refresh.url:https://graph.facebook.com/v18.0/oauth/access_token}")
+    @Value("${meta.api.token.refresh.url:https://graph.facebook.com/v19.0/oauth/access_token}")
     private String tokenRefreshUrl;
 
     public void refreshAccessTokenIfNeeded() {
@@ -63,9 +63,6 @@ public class MetaTokenService {
         }
     }
 
-    /**
-     * Vérifie via l’API Meta si le token est toujours valide
-     */
     public boolean isAccessTokenValid(String token) {
         URI uri = UriComponentsBuilder
                 .fromUriString("https://graph.facebook.com/debug_token")

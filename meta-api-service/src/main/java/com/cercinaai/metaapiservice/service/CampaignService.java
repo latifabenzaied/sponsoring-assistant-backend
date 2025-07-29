@@ -1,7 +1,8 @@
 package com.cercinaai.metaapiservice.service;
 
-import com.cercinaai.campaignservice.entity.Ad;
+import com.cercinaai.metaapiservice.entity.Ad;
 import com.cercinaai.metaapiservice.entity.Campaign;
+import com.cercinaai.metaapiservice.repository.AdRepository;
 import com.cercinaai.metaapiservice.repository.CampaignRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;

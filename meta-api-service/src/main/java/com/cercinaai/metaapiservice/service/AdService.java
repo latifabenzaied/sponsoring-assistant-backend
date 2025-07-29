@@ -1,8 +1,7 @@
 package com.cercinaai.metaapiservice.service;
 
-import com.cercinaai.campaignservice.entity.SitePost;
-import com.cercinaai.campaignservice.repository.SitePostRepository;
 import com.cercinaai.metaapiservice.entity.Ad;
+import com.cercinaai.metaapiservice.entity.SitePostDto;
 import com.cercinaai.metaapiservice.repository.AdRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
@@ -15,13 +14,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdService {
     private final AdRepository adRepository;
-    private final SitePostRepository sitePostRepository;
+    private final SitePostClient sitePostClient;
+
 
     public Ad addAd(Ad ad, int idSitePost) {
-        SitePost Post = sitePostRepository.findById(idSitePost)
-                .orElseThrow(() -> new RuntimeException("SitePost with id " + idSitePost + " not found"));
-
-        ad.setIdSitePost(Post);
+        SitePostDto sitePost = sitePostClient.getSitePostById(idSitePost);
+        if (sitePost == null) {
+            throw new RuntimeException("SitePost ID invalide ou inexistant");
+        }
+        ad.setIdSitePost(sitePost.getIdSitePost());
         ad.setCreatedAt(LocalDateTime.now());
         return adRepository.save(ad);
     }

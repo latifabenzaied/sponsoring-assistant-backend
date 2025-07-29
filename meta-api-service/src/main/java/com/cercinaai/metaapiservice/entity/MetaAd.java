@@ -2,38 +2,31 @@ package com.cercinaai.metaapiservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
-@Getter
-@Builder
-
 @Entity
-public class Campaign {
+@Table(name = "meta_ads")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class MetaAd {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     private String name;
-    private String objective;
 
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private Double budget;
+    private String creativeId; // stocké séparément
 
     @Enumerated(EnumType.STRING)
-    private StatusType status;
+    private MetaStatus status;
 
+    private String metaAdSetId;
     private LocalDateTime createdAt;
 
-
-    @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "ad_id")
-    private Ad ad;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ad_set_id")
+    private MetaAdSet adSet;
 }
-

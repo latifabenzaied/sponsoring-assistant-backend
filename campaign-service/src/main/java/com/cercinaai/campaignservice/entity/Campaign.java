@@ -34,11 +34,11 @@ public class Campaign {
     private LocalDateTime createdAt;
 
 
-    @OneToOne(cascade = CascadeType.ALL)
+   /* @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "ad_id")
-    private Ad ad;
+*//*    private Ad ad;*//*
 
     @OneToOne(mappedBy = "campaign", cascade = CascadeType.ALL)
-    private Performance performance;
+    private Performance performance;*/
 }
 

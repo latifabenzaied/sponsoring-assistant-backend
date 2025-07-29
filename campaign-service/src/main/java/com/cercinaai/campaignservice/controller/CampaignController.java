@@ -14,10 +14,10 @@ import java.util.List;
 public class CampaignController {
     private final CampaignService  campaignService;
 
-    @PostMapping("/{idAd}")
+/*    @PostMapping("/{idAd}")
     public ResponseEntity<?> addAd(@RequestBody Campaign campaign, @PathVariable int idAd ) {
         return ResponseEntity.ok(campaignService.addCampaign(campaign, idAd));
-    }
+    }*/
 
     @GetMapping("")
     public ResponseEntity<List<Campaign>> getAll(

@@ -11,20 +11,22 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @Entity
-
-public class Ad {
-
+@Table(name = "MetaCampaign")
+public class MetaCampaign {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    private String description;
-    private String photoUrl;
-    private String destinitionUrl;
+
+    private String name;//(titleeee)
+
     @Enumerated(EnumType.STRING)
-    private AdFormatType format;
+    private ObjectiveType objective;
+
     @Enumerated(EnumType.STRING)
-    private PlatformType platform;
+    private MetaStatus status;
+
     private LocalDateTime createdAt;
-    @Column(name = "site_post_id", nullable = false)
-    private int idSitePost;
+
+    @Column(name = "meta_campaign_id", unique = true , nullable = true)
+    private String metaCampaignId;
 }

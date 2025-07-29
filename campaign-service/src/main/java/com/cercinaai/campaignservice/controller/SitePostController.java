@@ -8,8 +8,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -85,7 +83,7 @@ public class SitePostController {
         return ResponseEntity.ok(sitePostService.getAllSitePosts());
     }
     @GetMapping("/{idPost}")
-    public ResponseEntity<SitePost> getAll(@PathVariable int idPost
+    public ResponseEntity<SitePost> getSitePostById(@PathVariable int idPost
     ) {
         return ResponseEntity.ok(sitePostService.getSitePostById(idPost));
     }

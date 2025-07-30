@@ -3,6 +3,7 @@ package com.cercinaai.metaapiservice.service;
 import com.cercinaai.metaapiservice.entity.Ad;
 import com.cercinaai.metaapiservice.entity.SitePostDto;
 import com.cercinaai.metaapiservice.repository.AdRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
@@ -23,9 +24,22 @@ public class AdService {
             throw new RuntimeException("SitePost ID invalide ou inexistant");
         }
         ad.setIdSitePost(sitePost.getIdSitePost());
-        ad.setCreatedAt(LocalDateTime.now());
         return adRepository.save(ad);
     }
+
+
+
+    public Ad updateAd(int id, Ad updatedAd) {
+        Ad existingAd = adRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Ad not found with id: " + id));
+
+        existingAd.setMetaCampaignId(updatedAd.getMetaCampaignId());
+        existingAd.setMetaAdSetId(updatedAd.getMetaAdSetId());
+        existingAd.setMetaAdId(updatedAd.getMetaAdId());
+
+        return adRepository.save(existingAd);
+    }
+
 
 
     public List<Ad> getAllAds() {

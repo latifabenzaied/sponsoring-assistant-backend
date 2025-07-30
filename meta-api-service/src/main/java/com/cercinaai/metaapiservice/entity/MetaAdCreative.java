@@ -18,7 +18,7 @@ public class MetaAdCreative {
     private String pageId;
 
     @Column(name = "instagram_actor_id")
-    private String instagramActorId; // optionnel
+    private String instagramActorId;
 
     private String imageHash;
     private String link;

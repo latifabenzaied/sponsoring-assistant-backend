@@ -18,7 +18,7 @@ public class MetaAd {
 
     private String name;
 
-    private String creativeId; // stocké séparément
+    private String creativeId;
 
     @Enumerated(EnumType.STRING)
     private MetaStatus status;

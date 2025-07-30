@@ -11,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/ad")
+@CrossOrigin("http://localhost:4200")
 @RequiredArgsConstructor
 public class AdController {
 

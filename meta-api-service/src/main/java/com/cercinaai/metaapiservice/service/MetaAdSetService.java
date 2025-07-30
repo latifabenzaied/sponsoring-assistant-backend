@@ -112,7 +112,7 @@ public class MetaAdSetService {
 
             if (response != null && response.has("id")) {
                 String adSetId = response.get("id").asText();
-                log.info("🟢 AdSet Meta créé avec ID: {}", adSetId);
+                log.info("AdSet Meta créé avec ID: {}", adSetId);
                 return adSetId;
             } else {
                 throw new RuntimeException("Réponse invalide de Meta API: " + response);

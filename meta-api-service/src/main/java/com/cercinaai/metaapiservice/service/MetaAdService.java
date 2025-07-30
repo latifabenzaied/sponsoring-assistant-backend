@@ -7,11 +7,14 @@ import com.cercinaai.metaapiservice.repository.MetaAdRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -28,18 +31,18 @@ public class MetaAdService {
     private final MetaAccountRepository metaAccountRepository;
     private final MetaTokenService tokenService;
 
-    private String adAccountId="act_121780531366304";
+    private String adAccountId = "act_121780531366304";
 
     @Value("${meta.page-id}")
     private String pageId;
-    private String instagramAccountId="";
+    private String instagramAccountId = "";
 
     private final WebClient webClient = WebClient.builder()
             .baseUrl("https://graph.facebook.com/v19.0")
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
             .build();
 
-    public MetaAd create(MetaAd ad) {
+    public MetaAd create(MetaAd ad,MultipartFile file) {
         log.info("Création d’un Ad Meta: {}", ad.getName());
 
         try {
@@ -54,11 +57,10 @@ public class MetaAdService {
             }
 
             // 1. Créer un AdCreative temporaire
-            String creativeId = createAdCreative(account, ad);
-
-            // 2. Créer le Ad avec le creative_id
+            String creativeId = createAdCreative(account, ad,file);
+            System.out.println(creativeId);
             String metaAdId = createAdOnMeta(ad, creativeId, account);
-
+            saved.setCreativeId(creativeId);
             saved.setMetaAdSetId(metaAdId);
             saved = metaAdRepository.save(saved);
 
@@ -75,6 +77,60 @@ public class MetaAdService {
         }
     }
 
+
+    private String createAdCreative(MetaAccount account, MetaAd ad, MultipartFile imageFile) {
+        try {
+            // 1. Upload de l’image et récupération du hash
+            String imageHash = uploadImage(imageFile); // Méthode déjà développée
+
+            WebClient client = WebClient.create("https://graph.facebook.com/v19.0");
+            ObjectMapper mapper = new ObjectMapper();
+
+            // 2. Construire object_story_spec
+            ObjectNode objectStorySpec = mapper.createObjectNode();
+            objectStorySpec.put("page_id", pageId);
+
+            if (instagramAccountId != null && !instagramAccountId.isEmpty()) {
+                objectStorySpec.put("instagram_actor_id", instagramAccountId);
+            }
+
+            ObjectNode linkData = mapper.createObjectNode();
+            linkData.put("image_hash", imageHash);
+            linkData.put("link", "https://tonsite.com/annonce/123");
+            linkData.put("message", "Découvrez ce bien immobilier exceptionnel à Rabat.");
+
+            objectStorySpec.set("link_data", linkData);
+
+            // 3. Construire formData
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("name", ad.getName());
+            formData.add("object_story_spec", objectStorySpec.toString());
+            formData.add("access_token", account.getAccessToken());
+
+            // 4. Appel API Meta
+            JsonNode response = client.post()
+                    .uri("/" + adAccountId + "/adcreatives")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData(formData))
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+
+            if (response != null && response.has("id")) {
+                return response.get("id").asText();
+            } else {
+                throw new RuntimeException("Réponse invalide lors de la création du AdCreative : " + response);
+            }
+
+        } catch (WebClientResponseException e) {
+            log.error("Erreur Meta API - AdCreative: {}", e.getResponseBodyAsString());
+            throw e;
+        } catch (Exception e) {
+            log.error("Erreur lors de la création du AdCreative", e);
+            throw new RuntimeException("Erreur interne : " + e.getMessage());
+        }
+    }
+
     private String createAdCreative(MetaAccount account, MetaAd ad) {
         try {
             WebClient client = WebClient.create("https://graph.facebook.com/v19.0");
@@ -82,9 +138,9 @@ public class MetaAdService {
 
             // Construire object_story_spec
             ObjectNode objectStorySpec = mapper.createObjectNode();
-            objectStorySpec.put("page_id",pageId);
+            objectStorySpec.put("page_id", pageId);
 
-            if (instagramAccountId!= null && !instagramAccountId.isEmpty()) {
+            if (instagramAccountId != null && !instagramAccountId.isEmpty()) {
                 objectStorySpec.put("instagram_actor_id", instagramAccountId);
             }
 
@@ -125,7 +181,7 @@ public class MetaAdService {
         formData.add("name", ad.getName());
         System.out.println(ad.getMetaAdSetId());
         formData.add("adset_id", ad.getMetaAdSetId());
-        formData.add("status","PAUSED");
+        formData.add("status", "PAUSED");
         formData.add("creative", "{\"creative_id\":\"" + creativeId + "\"}");
         formData.add("access_token", account.getAccessToken());
 
@@ -143,4 +199,100 @@ public class MetaAdService {
             throw new RuntimeException("Réponse invalide lors de la création du Ad : " + response);
         }
     }
+
+
+    /*public String uploadImage(MultipartFile file) {
+        try {
+            MetaAccount account = metaAccountRepository.findById(1)
+                    .orElseThrow(() -> new RuntimeException("MetaAccount introuvable"));
+
+            if (file.isEmpty()) {
+                throw new RuntimeException("Fichier vide");
+            }
+
+            // Récupérer le nom réel du fichier
+            String filename = file.getOriginalFilename();
+            String accessToken = account.getAccessToken();
+
+            MultipartBodyBuilder builder = new MultipartBodyBuilder();
+            builder.part("access_token", accessToken);
+            builder.part("bytes", new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename();
+                }
+            }).header("Content-Disposition", "form-data; name=\"bytes\"; filename=\"" + file.getOriginalFilename() + "\"");
+
+            JsonNode response = webClient.post()
+                    .uri("/" + adAccountId + "/adimages")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(BodyInserters.fromMultipartData(builder.build()))
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+
+            if (response != null && response.has("images")) {
+                JsonNode images = response.get("images");
+                JsonNode firstImage = images.elements().next();
+                return firstImage.get("hash").asText();
+            } else {
+                throw new RuntimeException("Réponse invalide de Meta API : " + response);
+            }
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload d'image sur Meta", e);
+            throw new RuntimeException("Upload échoué : " + e.getMessage());
+        }
+    }*/
+
+    public String uploadImage(MultipartFile file) {
+        try {
+            MetaAccount account = metaAccountRepository.findById(1)
+                    .orElseThrow(() -> new RuntimeException("MetaAccount introuvable"));
+
+            if (file.isEmpty()) throw new RuntimeException("Fichier vide");
+
+            WebClient client = WebClient.builder()
+                    .baseUrl("https://graph.facebook.com/v19.0")
+                    .build();
+
+            MultipartBodyBuilder builder = new MultipartBodyBuilder();
+
+            // Token
+            builder.part("access_token", account.getAccessToken());
+
+            // Part "bytes" correctement nommée et typée
+            builder.part("bytes", new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename(); // OBLIGATOIRE
+                }
+            }).contentType(MediaType.APPLICATION_OCTET_STREAM); // OPTIONNEL MAIS RECOMMANDÉ
+
+            JsonNode response = client.post()
+                    .uri("/act_121780531366304/adimages") // attention: "act_" dans l'URL
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(BodyInserters.fromMultipartData(builder.build()))
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+
+            if (response != null && response.has("images")) {
+                JsonNode images = response.get("images");
+                JsonNode firstImage = images.elements().next();
+                return firstImage.get("hash").asText();
+            } else {
+                throw new RuntimeException("Réponse invalide de Meta API : " + response);
+            }
+
+        } catch (WebClientResponseException e) {
+            log.error("Erreur Meta API : Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Upload échoué : " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload d'image sur Meta", e);
+            throw new RuntimeException("Upload échoué : " + e.getMessage());
+        }
+    }
+
+
 }

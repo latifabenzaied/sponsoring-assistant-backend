@@ -42,7 +42,7 @@ public class MetaCampaignService {
             .build();
 
 
-    public MetaCampaign create(MetaCampaign campaign,int idPost) {
+    public MetaCampaign create(MetaCampaign campaign) {
         log.info("Création d'une nouvelle campagne Meta: {}", campaign.getName());
 
         try {

@@ -17,7 +17,7 @@ public class MetaCampaign {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private String name;//(titleeee)
+    private String name;
 
     @Enumerated(EnumType.STRING)
     private ObjectiveType objective;

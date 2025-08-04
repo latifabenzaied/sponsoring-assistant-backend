@@ -2,14 +2,18 @@ package com.cercinaai.metaapiservice.service;
 
 import com.cercinaai.metaapiservice.entity.MetaAccount;
 import com.cercinaai.metaapiservice.entity.MetaAdSet;
+import com.cercinaai.metaapiservice.entity.MetaAdSetRequest;
+import com.cercinaai.metaapiservice.entity.MetaCampaign;
 import com.cercinaai.metaapiservice.repository.MetaAccountRepository;
 import com.cercinaai.metaapiservice.repository.MetaAdRepository;
 import com.cercinaai.metaapiservice.repository.MetaAdSetRepository;
+import com.cercinaai.metaapiservice.repository.MetaCampaignRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -21,6 +25,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -28,6 +33,7 @@ import java.time.LocalDateTime;
 public class MetaAdSetService {
 
     private final MetaAdSetRepository metaAdSetRepository;
+    private final MetaCampaignRepository  metaCampaignRepository;
     private final MetaAccountRepository metaAccountRepository;
     private final MetaTokenService tokenService;
 
@@ -39,13 +45,10 @@ public class MetaAdSetService {
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
             .build();
 
-    public MetaAdSet create(MetaAdSet adSet) {
+    public MetaAdSet create(MetaAdSetRequest adSet) {
         log.info("Création d’un AdSet Meta: {}", adSet.getName());
 
         try {
-
-            MetaAdSet saved = metaAdSetRepository.save(adSet);
-
             tokenService.refreshAccessTokenIfNeeded();
             MetaAccount account = metaAccountRepository.findById(1)
                     .orElseThrow(() -> new RuntimeException("MetaAccount introuvable"));
@@ -53,14 +56,27 @@ public class MetaAdSetService {
             if (account.getAccessToken() == null || account.getAccessToken().isEmpty()) {
                 throw new RuntimeException("Token d'accès Meta manquant ou invalide");
             }
+            MetaCampaign campaign = metaCampaignRepository.findByMetaCampaignId(adSet.getMetaCampaignId())
+                    .orElseThrow(() -> new RuntimeException("Campagne introuvable"));
+            MetaAdSet adSetSaved = MetaAdSet.builder()
+                    .name(adSet.getName())
+                    .dailyBudget(adSet.getDailyBudget())
+                    .billingEvent(adSet.getBillingEvent())
+                    .optimizationGoal(adSet.getOptimizationGoal())
+                    .status(adSet.getStatus())
+                    .bidStrategy(adSet.getBidStrategy())
+                    .bidAmount(adSet.getBidAmount())
+                    .targetingJson(adSet.getTargetingJson())
+                    .startTime(adSet.getStartTime())
+                    .endTime(adSet.getEndTime())
+                    .campaign(campaign)
+                    .build();
+            String metaAdSetId = createAdSetOnMeta(adSetSaved, account);
+            adSetSaved.setMetaAdSetId(metaAdSetId);
+            adSetSaved= metaAdSetRepository.save(adSetSaved);
 
-            String metaAdSetId = createAdSetOnMeta(saved, account);
-
-            saved.setMetaAdSetId(metaAdSetId);
-            saved = metaAdSetRepository.save(saved);
-
-            log.info("✅ AdSet créé avec succès. ID local: {}, ID Meta: {}", saved.getId(), metaAdSetId);
-            return saved;
+            log.info("✅ AdSet créé avec succès. ID local: {}, ID Meta: {}", adSetSaved.getId(), metaAdSetId);
+            return adSetSaved;
 
         } catch (WebClientResponseException e) {
             log.error("Erreur API Meta: Status {}, Body: {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -81,15 +97,16 @@ public class MetaAdSetService {
         } catch (Exception e) {
             throw new RuntimeException("Le champ 'targetingJson' n'est pas un JSON valide : " + e.getMessage());
         }*/
+        System.out.println(adSet);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ");// Map<String, Object>
         formData.add("name", adSet.getName());
-        formData.add("campaign_id", adSet.getMetaCampaignId());
+        formData.add("campaign_id", adSet.getCampaign().getMetaCampaignId());
         formData.add("daily_budget", adSet.getDailyBudget().toString());
         formData.add("billing_event", adSet.getBillingEvent());
         formData.add("optimization_goal", adSet.getOptimizationGoal());
         formData.add("start_time", adSet.getStartTime().atOffset(java.time.ZoneOffset.of("+0000")).format(formatter));
         formData.add("end_time", adSet.getEndTime().atOffset(java.time.ZoneOffset.of("+0000")).format(formatter));
-        formData.add("status", adSet.getStatus());
+        formData.add("status", adSet.getStatus().name());
         formData.add("targeting", adSet.getTargetingJson());
         formData.add("access_token", account.getAccessToken());
         formData.add("bid_strategy", adSet.getBidStrategy());
@@ -121,6 +138,15 @@ public class MetaAdSetService {
         } catch (WebClientResponseException e) {
             log.error("Détail erreur API Meta: Status {}, Headers {}, Body {}", e.getStatusCode(), e.getHeaders(), e.getResponseBodyAsString());
             throw e;
+        }
+    }
+
+
+    public List<MetaAdSet> getAllCampaigns() {
+        try {
+            return metaAdSetRepository.findAll();
+        } catch (DataAccessException e) {
+            throw new RuntimeException("Database error while fetching complaints", e);
         }
     }
 }

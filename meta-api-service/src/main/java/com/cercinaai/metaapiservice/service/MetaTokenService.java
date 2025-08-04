@@ -77,4 +77,8 @@ public class MetaTokenService {
             return false;
         }
     }
+
+    public String getAccessToken() {
+        return metaAccountRepository.findById(1).get().getAccessToken();
+    }
 }

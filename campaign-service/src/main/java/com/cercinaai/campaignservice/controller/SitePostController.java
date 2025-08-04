@@ -20,7 +20,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/sitePost")
-@CrossOrigin("http://localhost:4201")
+@CrossOrigin({"http://localhost:4201", "http://localhost:4200"})
 @RequiredArgsConstructor
 public class SitePostController {
     private final SitePostService sitePostService;

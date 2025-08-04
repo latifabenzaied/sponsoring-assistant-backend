@@ -1,14 +1,12 @@
 package com.cercinaai.metaapiservice.service;
 
-import com.cercinaai.metaapiservice.entity.MetaAccount;
-import com.cercinaai.metaapiservice.entity.MetaCampaign;
-import com.cercinaai.metaapiservice.entity.MetaStatus;
-import com.cercinaai.metaapiservice.entity.ObjectiveType;
+import com.cercinaai.metaapiservice.entity.*;
 import com.cercinaai.metaapiservice.repository.CampaignRepository;
 import com.cercinaai.metaapiservice.repository.MetaAccountRepository;
 import com.cercinaai.metaapiservice.repository.MetaCampaignRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpHeaders;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,15 +20,17 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class MetaCampaignService {
 
 
-   /* @Value("${meta.app.client-id}")*/
-    private String adAccountId="act_121780531366304";
+    /* @Value("${meta.app.client-id}")*/
+    private String adAccountId = "act_121780531366304";
     private final MetaTokenService tokenService;
     private final MetaCampaignRepository metaCampaignRepository;
     private final MetaAccountRepository metaAccountRepository;
@@ -112,8 +112,13 @@ public class MetaCampaignService {
     }
 
 
-
-
-
+    public List<MetaCampaign> getAllCampaigns() {
+        try {
+            return metaCampaignRepository.findAll();
+        } catch (DataAccessException e) {
+            throw new RuntimeException("Database error while fetching complaints", e);
+        }
+    }
 
 }
+

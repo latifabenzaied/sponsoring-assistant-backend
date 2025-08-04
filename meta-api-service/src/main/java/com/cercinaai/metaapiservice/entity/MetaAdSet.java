@@ -1,10 +1,13 @@
 package com.cercinaai.metaapiservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import lombok.*;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -12,32 +15,30 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @Entity
+
 public class MetaAdSet {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String metaAdSetId;
-
     private String name;
     private Long dailyBudget;
     private String billingEvent;
-
     private String optimizationGoal;
-
-    private String status;
-
+    @Enumerated(EnumType.STRING)
+    private MetaStatus status;
     private LocalDateTime startTime;
-
     private LocalDateTime endTime;
-
-    @Lob
     private String targetingJson;
-
     private Long bidAmount;
-    private String bidStrategy; // e.g., "LOWEST_COST_WITHOUT_CAP"// e.g., 100 (si BID_CAP)
-    private String bidConstraints; // sous forme JSON si ROAS
-    @Column(name = "meta_campaign_id", nullable = false)
-    private String metaCampaignId; // Juste l’ID de MetaCampaign, pas d’objet
+    private String bidStrategy;
+    private String bidConstraints;
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_id", nullable = true)
+    private MetaCampaign campaign;
+    @OneToMany(mappedBy = "adSet", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MetaAd> ads = new ArrayList<>();
+
 }

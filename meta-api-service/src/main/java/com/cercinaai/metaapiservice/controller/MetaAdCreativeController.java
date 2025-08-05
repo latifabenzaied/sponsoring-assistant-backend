@@ -36,4 +36,9 @@ public class MetaAdCreativeController {
 
         return ResponseEntity.ok(dto);
     }
+
+    @GetMapping("/{creativeId}/image")
+    public String getCreativeImage(@PathVariable String creativeId) {
+        return metaAdCreative.getCreativeImageUrl(creativeId, tokenService.getAccessToken());
+    }
 }

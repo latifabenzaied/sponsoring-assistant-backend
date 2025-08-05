@@ -23,9 +23,12 @@ public class MetaAdCreative {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     private String name;
+
     private String imageHash;
     private String link;
+    @Column(length = 10000)
     private String message;
+    @Column(length = 20000)
     private String fullSpecJson;
     @Column(name = "metaAdCretaiveId", unique = true, nullable = true)
     private String metaAdCretaive;

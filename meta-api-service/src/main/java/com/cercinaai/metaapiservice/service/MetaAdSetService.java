@@ -58,8 +58,14 @@ public class MetaAdSetService {
             }
             MetaCampaign campaign = metaCampaignRepository.findByMetaCampaignId(adSet.getMetaCampaignId())
                     .orElseThrow(() -> new RuntimeException("Campagne introuvable"));
+
+            if (adSetExists(campaign, adSet)) {
+                throw new RuntimeException("Un AdSet similaire existe déjà pour cette campagne.");
+            }
+            String generatedName = generateAdSetName(adSet);
+
             MetaAdSet adSetSaved = MetaAdSet.builder()
-                    .name(adSet.getName())
+                    .name(generatedName)
                     .dailyBudget(adSet.getDailyBudget())
                     .billingEvent(adSet.getBillingEvent())
                     .optimizationGoal(adSet.getOptimizationGoal())
@@ -75,7 +81,7 @@ public class MetaAdSetService {
             adSetSaved.setMetaAdSetId(metaAdSetId);
             adSetSaved= metaAdSetRepository.save(adSetSaved);
 
-            log.info("✅ AdSet créé avec succès. ID local: {}, ID Meta: {}", adSetSaved.getId(), metaAdSetId);
+           /* log.info("✅ AdSet créé avec succès. ID local: {}, ID Meta: {}", adSetSaved.getId(), metaAdSetId);*/
             return adSetSaved;
 
         } catch (WebClientResponseException e) {
@@ -149,4 +155,47 @@ public class MetaAdSetService {
             throw new RuntimeException("Database error while fetching complaints", e);
         }
     }
+
+
+    private boolean adSetExists(MetaCampaign campaign, MetaAdSetRequest request) {
+        List<MetaAdSet> existingAdSets = metaAdSetRepository.findByCampaign(campaign);
+
+        return existingAdSets.stream().anyMatch(existing ->
+                                existing.getDailyBudget().equals(request.getDailyBudget()) &&
+                                existing.getBillingEvent().equals(request.getBillingEvent()) &&
+                                existing.getOptimizationGoal().equals(request.getOptimizationGoal()) &&
+                                existing.getTargetingJson().equals(request.getTargetingJson()) &&
+                                existing.getStartTime().equals(request.getStartTime()) &&
+                                existing.getEndTime().equals(request.getEndTime())
+
+        );
+    }
+
+
+    private String generateAdSetName(MetaAdSetRequest request) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM");
+
+        String audienceLabel = extractAudienceLabel(request.getTargetingJson()); // facultatif
+        String date = request.getStartTime().format(dateFormatter);
+        String budget = request.getDailyBudget() != null ? request.getDailyBudget() + "€" : "BudgetNA";
+
+        return String.format("AdSet_%s_%s_%s",
+                audienceLabel,
+                budget,
+                date
+        );
+    }
+    private String extractAudienceLabel(String targetingJson) {
+        try {
+            JsonNode targeting = new ObjectMapper().readTree(targetingJson);
+            String geo = targeting.at("/geo_locations/countries/0").asText("NA");
+            String ageMin = targeting.path("age_min").asText("?");
+            String ageMax = targeting.path("age_max").asText("?");
+
+            return geo + "_A" + ageMin + "-" + ageMax;
+        } catch (Exception e) {
+            return "AudienceNA";
+        }
+    }
+
 }

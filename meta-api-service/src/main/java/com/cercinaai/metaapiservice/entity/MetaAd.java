@@ -37,7 +37,7 @@ public class MetaAd {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ad_creative_id", nullable = false)
     private MetaAdCreative adCreative;
-    @Column(length = 3000)
+    @Column(length = 10000)
     private String imageUrl;
     @Column(name = "listing_id")
     private Integer listingId; // correspond à idSitePost dans SitePostDto

@@ -72,8 +72,9 @@ public class MetaAdCreativeService {
 
             // 2. Upload image Meta et création AdCreative
             String imageHash = uploadImageToMeta(imageFile, account.getAccessToken());
-            System.out.println(imageHash);
             String creativeId = createCreativeOnMeta(saved, imageHash, account);
+            System.out.println("📸 ID de la creative retournée: " + creativeId);
+
 
             // 3. Mise à jour locale
             saved.setImageHash(imageHash);
@@ -97,7 +98,7 @@ public class MetaAdCreativeService {
 
 
 
-    public String getCreativeImageUrl(String creativeId, String accessToken) {
+  /*  public String getCreativeImageUrl(String creativeId, String accessToken) {
         String fields = "id,name,object_story_spec,thumbnail_url,image_url,effective_object_story_id";
 
         return webClient.get()
@@ -109,28 +110,167 @@ public class MetaAdCreativeService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .map(json -> {
+                    System.out.println("📄 Réponse JSON brute: " + json.toPrettyString());
                     // 1. Try object_story_spec.link_data.picture
                     JsonNode pictureNode = json.at("/object_story_spec/link_data/picture");
                     if (!pictureNode.isMissingNode()) {
                         return pictureNode.asText();
                     }
-
+                    JsonNode imageUrl = json.get("image_url");
+                    if (imageUrl != null && !imageUrl.isNull()) {
+                        return imageUrl.asText().replaceAll("_s110x80_", "_n");
+                    }
                     // 2. Try thumbnail_url
                     JsonNode thumbnailUrl = json.get("thumbnail_url");
                     if (thumbnailUrl != null && !thumbnailUrl.isNull()) {
                         return thumbnailUrl.asText();
                     }
-
                     // 3. Try image_url
-                    JsonNode imageUrl = json.get("image_url");
-                    if (imageUrl != null && !imageUrl.isNull()) {
-                        return imageUrl.asText();
-                    }
 
                     return null; // Aucun champ trouvé
                 })
-                .block(); // ✅ convertit le flux réactif en String (synchrone)
+                .block();
+    }*/
+
+    public String getCreativeImageUrl(String creativeId, String accessToken) {
+        String fields = "id,effective_object_story_id,object_story_spec,thumbnail_url,image_url";
+
+        JsonNode creativeJson = webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/" + creativeId)
+                        .queryParam("fields", fields)
+                        .queryParam("access_token", accessToken)
+                        .build())
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
+
+        System.out.println("📄 JSON AdCreative: " + creativeJson.toPrettyString());
+
+        // 1. Récupère effective_object_story_id
+        JsonNode storyIdNode = creativeJson.get("effective_object_story_id");
+        if (storyIdNode != null && !storyIdNode.isNull()) {
+            String storyId = storyIdNode.asText();
+
+            JsonNode storyJson = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/" + storyId)
+                            .queryParam("fields", "full_picture")
+                            .queryParam("access_token", accessToken)
+                            .build())
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+
+            System.out.println("🖼️ JSON Object Story: " + storyJson.toPrettyString());
+
+            JsonNode fullPicture = storyJson.get("full_picture");
+            if (fullPicture != null && !fullPicture.isNull()) {
+                return fullPicture.asText(); // ✅ Haute qualité
+            }
+        }
+
+        // Fallback: image_url
+        JsonNode imageUrl = creativeJson.get("image_url");
+        if (imageUrl != null && !imageUrl.isNull()) {
+            return imageUrl.asText(); // (mais risque d’être basse qualité)
+        }
+
+        return null;
     }
+
+/*public String getCreativeImageUrl(String creativeId, String accessToken) {
+    String fields = "thumbnail_url";
+
+    JsonNode response = webClient.get()
+            .uri("/" + creativeId + "?fields=" + fields + "&access_token=" + accessToken)
+            .retrieve()
+            .bodyToMono(JsonNode.class)
+            .block();
+
+    if (response != null && response.has("thumbnail_url")) {
+        String url = response.get("thumbnail_url").asText();
+        log.info("📸 URL récupérée: {}", url);
+        return url; // SANS MODIFICATION
+    }
+
+    return null;
+}*/
+/*
+public String getCreativeImageUrl(String creativeId, String accessToken) {
+    String fields = "id,name,object_story_spec,thumbnail_url,image_url,effective_object_story_id,image_hash,image_crops";
+
+    log.info("🔍 Récupération de l'image pour creative ID: {}", creativeId);
+
+    return webClient.get()
+            .uri(uriBuilder -> uriBuilder
+                    .path("/" + creativeId)
+                    .queryParam("fields", fields)
+                    .queryParam("access_token", accessToken)
+                    .build())
+            .retrieve()
+            .bodyToMono(JsonNode.class)
+            .map(json -> {
+                // 📋 LOG COMPLET pour debug
+                log.info("🔍 RÉPONSE COMPLÈTE Meta API pour creative {}: {}", creativeId, json.toPrettyString());
+
+                // Vérifier tous les chemins possibles
+                String imageUrl = null;
+
+                // 1. object_story_spec.link_data.picture (URL directe)
+                JsonNode pictureNode = json.at("/object_story_spec/link_data/picture");
+                if (!pictureNode.isMissingNode() && !pictureNode.asText().isEmpty()) {
+                    imageUrl = pictureNode.asText();
+                    log.info("✅ Image trouvée dans object_story_spec.link_data.picture: {}", imageUrl);
+                    return getFullSizeImageUrl(imageUrl); // Conversion en taille normale
+                }
+
+                // 2. object_story_spec.link_data.image_hash
+                JsonNode imageHashNode = json.at("/object_story_spec/link_data/image_hash");
+                if (!imageHashNode.isMissingNode() && !imageHashNode.asText().isEmpty()) {
+                    String hash = imageHashNode.asText();
+                    log.info("✅ Image hash trouvé: {}", hash);
+                    // Construire l'URL à partir du hash
+                    imageUrl = buildImageUrlFromHash(hash);
+                    return imageUrl;
+                }
+
+                // 3. thumbnail_url
+                JsonNode thumbnailUrl = json.get("thumbnail_url");
+                if (thumbnailUrl != null && !thumbnailUrl.isNull() && !thumbnailUrl.asText().isEmpty()) {
+                    imageUrl = thumbnailUrl.asText();
+                    log.info("✅ Image trouvée dans thumbnail_url: {}", imageUrl);
+                    return getFullSizeImageUrl(imageUrl); // Conversion en taille normale
+                }
+
+                // 4. image_url
+                JsonNode imageUrlNode = json.get("image_url");
+                if (imageUrlNode != null && !imageUrlNode.isNull() && !imageUrlNode.asText().isEmpty()) {
+                    imageUrl = imageUrlNode.asText();
+                    log.info("✅ Image trouvée dans image_url: {}", imageUrl);
+                    return getFullSizeImageUrl(imageUrl); // Conversion en taille normale
+                }
+
+                // 5. Chercher dans image_crops si présent
+                JsonNode imageCrops = json.get("image_crops");
+                if (imageCrops != null && imageCrops.isArray() && imageCrops.size() > 0) {
+                    JsonNode firstCrop = imageCrops.get(0);
+                    JsonNode cropUrl = firstCrop.get("url");
+                    if (cropUrl != null && !cropUrl.asText().isEmpty()) {
+                        imageUrl = cropUrl.asText();
+                        log.info("✅ Image trouvée dans image_crops: {}", imageUrl);
+                        return getFullSizeImageUrl(imageUrl);
+                    }
+                }
+
+                log.error("❌ AUCUNE IMAGE TROUVÉE pour creative: {}", creativeId);
+                log.error("❌ Champs disponibles: {}", json.fieldNames());
+                return null;
+            })
+            .block();
+}
+*/
+
 
 
 

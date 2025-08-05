@@ -1,10 +1,7 @@
 package com.cercinaai.metaapiservice.controller;
 
 
-import com.cercinaai.metaapiservice.entity.MetaAd;
-import com.cercinaai.metaapiservice.entity.MetaAdCreative;
-import com.cercinaai.metaapiservice.entity.MetaAdRequest;
-import com.cercinaai.metaapiservice.entity.MetaAdSet;
+import com.cercinaai.metaapiservice.entity.*;
 import com.cercinaai.metaapiservice.service.MetaAdCreativeService;
 import com.cercinaai.metaapiservice.service.MetaAdService;
 import com.cercinaai.metaapiservice.service.MetaTokenService;
@@ -33,6 +30,7 @@ public class MetaAdController {
     @PostMapping(value = "", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MetaAd> create(@RequestBody MetaAdRequest request) {
         try {
+            System.out.println(request);
             MetaAd createdAd = metaAdService.createFromLocalImage(request);
             return ResponseEntity.ok(createdAd);
         } catch (Exception e) {
@@ -40,6 +38,9 @@ public class MetaAdController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+
+
 
    /* @GetMapping("/{creativeId}/image-url")
     public Mono<ResponseEntity<String>> getImageUrl(@PathVariable String creativeId) {
@@ -63,6 +64,12 @@ public class MetaAdController {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @GetMapping("")
+    public ResponseEntity<List<MetaAd>> getAll(
+    ) {
+        return ResponseEntity.ok(metaAdService.getAllMetaAd());
     }
 
 

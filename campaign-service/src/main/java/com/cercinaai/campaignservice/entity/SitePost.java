@@ -23,6 +23,7 @@ public class SitePost {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int idSitePost;
     private String title;
+    @Column(length = 10000)
     private String description;
     private String propertyType;
     @Enumerated(EnumType.STRING)

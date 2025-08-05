@@ -21,7 +21,7 @@ import java.util.UUID;
 @Service
 public class SitePostService {
     private final SitePostRepository sitePostRepository;
-    private final FileStorageService fileStorageService;
+    private final MetaServcieClient metaServcieClient;
 
     public SitePost addSitePost(SitePost sitePost, List<MultipartFile> imageFiles) {
         List<String> imagePaths = new ArrayList<>();
@@ -39,8 +39,10 @@ public class SitePostService {
 
         sitePost.setPhotoUrls(imagePaths);
         sitePost.setPublishedAt(LocalDateTime.now()); // optionnel
-        System.out.println(sitePost);
-        return sitePostRepository.save(sitePost);
+        SitePost saved=sitePostRepository.save(sitePost);
+        metaServcieClient.createSponsoredMapping(saved.getIdSitePost());
+
+        return saved;
     }
     private String saveImageToLocal(MultipartFile file) throws IOException {
         String uploadsDir = "uploads/";

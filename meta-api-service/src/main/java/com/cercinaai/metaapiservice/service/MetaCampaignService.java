@@ -18,7 +18,9 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +50,7 @@ public class MetaCampaignService {
         try {
 
             campaign.setCreatedAt(LocalDateTime.now());
+            campaign.setName(generateCampaignName(campaign));
             MetaCampaign saved = metaCampaignRepository.save(campaign);
 
             tokenService.refreshAccessTokenIfNeeded();
@@ -78,6 +81,16 @@ public class MetaCampaignService {
         }
     }
 
+
+
+    private String generateCampaignName(MetaCampaign campaign) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+        String objectif = campaign.getObjective() != null ? campaign.getObjective().name() : "ObjectiveNA";
+        String date = LocalDate.now().format(formatter);
+
+        return String.format("Campaign_%s_%s", objectif, date);
+    }
     private String createCampaignOnMeta(MetaCampaign campaign, MetaAccount account) {
         // Préparer les données du formulaire selon les specs Meta
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();

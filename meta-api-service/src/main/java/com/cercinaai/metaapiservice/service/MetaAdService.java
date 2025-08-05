@@ -5,10 +5,12 @@ import com.cercinaai.metaapiservice.entity.*;
 import com.cercinaai.metaapiservice.repository.MetaAccountRepository;
 import com.cercinaai.metaapiservice.repository.MetaAdRepository;
 import com.cercinaai.metaapiservice.repository.MetaAdSetRepository;
+import com.cercinaai.metaapiservice.repository.SponsoredAdMappingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -30,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -42,6 +45,7 @@ public class MetaAdService {
     private final MetaTokenService tokenService;
     private final MetaAdCreativeService adCreativeService;
     private final MetaAdSetRepository metaAdSetRepository;
+    private final SponsoredAdMappingService sponsoredAdMappingService;
 
 
     private String adAccountId = "act_121780531366304";
@@ -131,10 +135,11 @@ public class MetaAdService {
             MetaAdSet adSet = metaAdSetRepository.findByMetaAdSetId(adRequest.getMetaAdSetId())
                     .orElseThrow(() -> new RuntimeException("AdSet introuvable"));
 
+            System.out.println(adRequest.toString());
             MetaAdCreative creative = MetaAdCreative.builder()
                     .name(adRequest.getName())
                     .link("https://tonsite.com/annonce/123")
-                    .message("Découvrez ce bien immobilier exceptionnel à Rabat.")
+                    .message(adRequest.getMessage())
                     .build();
 
             MetaAd ad = MetaAd.builder()
@@ -146,14 +151,19 @@ public class MetaAdService {
 
             MetaAdCreative savedCreative = adCreativeService.create(creative, imageFile);
 
-            String metaAdId = createAdOnMeta(ad, savedCreative.getMetaAdCretaive(), account);
+           /* String metaAdId = createAdOnMeta(ad, savedCreative.getMetaAdCretaive(), account);*/
+           /* sponsoredAdMappingService.updateWithMetaAdId(adRequest.getSiteAdId(), metaAdId);*/
+            /*Thread.sleep(3000);*/
            String imageUrl = adCreativeService.getCreativeImageUrl(
                     savedCreative.getMetaAdCretaive(),
                     account.getAccessToken()
             );
+            System.out.println(imageUrl);
+
             ad.setImageUrl(imageUrl);
             ad.setCreativeId(savedCreative.getMetaAdCretaive());
-            ad.setMetaAdId(metaAdId);
+            /*ad.setMetaAdId(metaAdId);*/
+            ad.setCreatedAt(LocalDateTime.now());
 
             return metaAdRepository.save(ad);
 
@@ -167,51 +177,6 @@ public class MetaAdService {
         }
     }
 
-
-    private String createAdCreative(MetaAccount account, MetaAd ad) {
-        try {
-            WebClient client = WebClient.create("https://graph.facebook.com/v19.0");
-            ObjectMapper mapper = new ObjectMapper();
-
-            // Construire object_story_spec
-            ObjectNode objectStorySpec = mapper.createObjectNode();
-            objectStorySpec.put("page_id", pageId);
-
-            if (instagramAccountId != null && !instagramAccountId.isEmpty()) {
-                objectStorySpec.put("instagram_actor_id", instagramAccountId);
-            }
-
-            ObjectNode linkData = mapper.createObjectNode();
-            linkData.put("image_hash", "f132c8f3d4ba810fb4f9f322f897933e");
-            linkData.put("link", "https://tonsite.com/annonce/123");
-            linkData.put("message", "TTTT");
-
-            objectStorySpec.set("link_data", linkData);
-
-            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-            formData.add("name", "TTTTTTT");
-            formData.add("object_story_spec", objectStorySpec.toString());
-            formData.add("access_token", account.getAccessToken());
-
-            JsonNode response = client.post()
-                    .uri("/" + adAccountId + "/adcreatives")
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData(formData))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
-
-            if (response != null && response.has("id")) {
-                return response.get("id").asText();
-            } else {
-                throw new RuntimeException("Réponse invalide lors de la création du AdCreative : " + response);
-            }
-
-        } catch (WebClientResponseException e) {
-            log.error("Erreur Meta API - AdCreative: {}", e.getResponseBodyAsString());
-            throw e;
-        }
-    }
 
     private String createAdOnMeta(MetaAd ad, String creativeId, MetaAccount account) {
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -237,152 +202,11 @@ public class MetaAdService {
     }
 
 
-    /*public String uploadImage(MultipartFile file) {
+    public List<MetaAd> getAllMetaAd() {
         try {
-            MetaAccount account = metaAccountRepository.findById(1)
-                    .orElseThrow(() -> new RuntimeException("MetaAccount introuvable"));
-
-            if (file.isEmpty()) {
-                throw new RuntimeException("Fichier vide");
-            }
-
-            // Récupérer le nom réel du fichier
-            String filename = file.getOriginalFilename();
-            String accessToken = account.getAccessToken();
-
-            MultipartBodyBuilder builder = new MultipartBodyBuilder();
-            builder.part("access_token", accessToken);
-            builder.part("bytes", new ByteArrayResource(file.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return file.getOriginalFilename();
-                }
-            }).header("Content-Disposition", "form-data; name=\"bytes\"; filename=\"" + file.getOriginalFilename() + "\"");
-
-            JsonNode response = webClient.post()
-                    .uri("/" + adAccountId + "/adimages")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(BodyInserters.fromMultipartData(builder.build()))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
-
-            if (response != null && response.has("images")) {
-                JsonNode images = response.get("images");
-                JsonNode firstImage = images.elements().next();
-                return firstImage.get("hash").asText();
-            } else {
-                throw new RuntimeException("Réponse invalide de Meta API : " + response);
-            }
-
-        } catch (Exception e) {
-            log.error("Erreur lors de l'upload d'image sur Meta", e);
-            throw new RuntimeException("Upload échoué : " + e.getMessage());
-        }
-    }*/
-
-  /*  public String uploadImage(MultipartFile file) {
-        try {
-            MetaAccount account = metaAccountRepository.findById(1)
-                    .orElseThrow(() -> new RuntimeException("MetaAccount introuvable"));
-
-            if (file.isEmpty()) throw new RuntimeException("Fichier vide");
-
-            WebClient client = WebClient.builder()
-                    .baseUrl("https://graph.facebook.com/v19.0")
-                    .build();
-
-            MultipartBodyBuilder builder = new MultipartBodyBuilder();
-
-            // Token
-            builder.part("access_token", account.getAccessToken());
-
-            // Part "bytes" correctement nommée et typée
-            builder.part("bytes", new ByteArrayResource(file.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return file.getOriginalFilename(); // OBLIGATOIRE
-                }
-            }).contentType(MediaType.APPLICATION_OCTET_STREAM); // OPTIONNEL MAIS RECOMMANDÉ
-
-            JsonNode response = client.post()
-                    .uri("/act_121780531366304/adimages") // attention: "act_" dans l'URL
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(BodyInserters.fromMultipartData(builder.build()))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
-
-            if (response != null && response.has("images")) {
-                JsonNode images = response.get("images");
-                JsonNode firstImage = images.elements().next();
-                return firstImage.get("hash").asText();
-            } else {
-                throw new RuntimeException("Réponse invalide de Meta API : " + response);
-            }
-
-        } catch (WebClientResponseException e) {
-            log.error("Erreur Meta API : Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("Upload échoué : " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            log.error("Erreur lors de l'upload d'image sur Meta", e);
-            throw new RuntimeException("Upload échoué : " + e.getMessage());
-        }
-    }*/
-    /*
-    private String createAdCreative(MetaAccount account, MetaAd ad, MultipartFile imageFile) {
-        try {
-            // 1. Upload de l’image et récupération du hash
-            String imageHash = uploadImage(imageFile); // Méthode déjà développée
-
-            WebClient client = WebClient.create("https://graph.facebook.com/v19.0");
-            ObjectMapper mapper = new ObjectMapper();
-
-            // 2. Construire object_story_spec
-            ObjectNode objectStorySpec = mapper.createObjectNode();
-            objectStorySpec.put("page_id", pageId);
-
-            if (instagramAccountId != null && !instagramAccountId.isEmpty()) {
-                objectStorySpec.put("instagram_actor_id", instagramAccountId);
-            }
-
-            ObjectNode linkData = mapper.createObjectNode();
-            linkData.put("image_hash", imageHash);
-            linkData.put("link", "https://tonsite.com/annonce/123");
-            linkData.put("message", "Découvrez ce bien immobilier exceptionnel à Rabat.");
-
-            objectStorySpec.set("link_data", linkData);
-
-            // 3. Construire formData
-            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-            formData.add("name", ad.getName());
-            formData.add("object_story_spec", objectStorySpec.toString());
-            formData.add("access_token", account.getAccessToken());
-
-            // 4. Appel API Meta
-            JsonNode response = client.post()
-                    .uri("/" + adAccountId + "/adcreatives")
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData(formData))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
-
-            if (response != null && response.has("id")) {
-                return response.get("id").asText();
-            } else {
-                throw new RuntimeException("Réponse invalide lors de la création du AdCreative : " + response);
-            }
-
-        } catch (WebClientResponseException e) {
-            log.error("Erreur Meta API - AdCreative: {}", e.getResponseBodyAsString());
-            throw e;
-        } catch (Exception e) {
-            log.error("Erreur lors de la création du AdCreative", e);
-            throw new RuntimeException("Erreur interne : " + e.getMessage());
+            return metaAdRepository.findAll();
+        } catch (DataAccessException e) {
+            throw new RuntimeException("Database error while fetching complaints", e);
         }
     }
-*/
-
-
 }
